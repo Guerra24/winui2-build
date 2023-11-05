@@ -1,0 +1,71 @@
+name: Build prerelease
+on: 
+  push:
+    branches:
+    - release/2.8-custom
+jobs:
+  buildWinUI:
+    name: Build
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        arch: [x86, x64, ARM, arm64]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Prepare Environment
+      uses: microsoft/setup-msbuild@v1.3
+      with:
+        msbuild-architecture: x64
+    - name: Prepare nuget cache
+      uses: actions/cache@v3
+      with:
+        path: packages
+        key: ${{ matrix.arch }}-nuget-${{ hashFiles('**/packages.config') }}
+        restore-keys: |
+          ${{ matrix.arch }}-nuget-
+#    - name: Restore PGO database
+#      working-directory: .\tools\MUXPGODatabase
+#      run: |
+#        .\restore-pgodb.ps1 -NuGetConfigPath ..\..\nuget.config
+    - name: Build
+      run: |
+        MSBuild dev\dll\Microsoft.UI.Xaml.vcxproj -nologo -r -v:minimal -m:1 /p:CL_MPCount=1 /p:PreferredToolArchitecture=x64 /p:RestorePackagesConfig=true /p:Configuration=Release /p:Platform=${{ matrix.arch }}
+        MSBuild dev\Microsoft.UI.Xaml.Design\Microsoft.UI.Xaml.Design.csproj -nologo -r -v:minimal /p:Configuration=Release /p:Platform=${{ matrix.arch }}
+# /p:PGOBuildMode=Optimize
+    - name: Upload compiled files
+      uses: actions/upload-artifact@v3
+      with:
+        name: intermediates
+        retention-days: 1
+        path: |
+          BuildOutput/Release/${{ matrix.arch }}
+          .empty
+  publishWinUI:
+    name: Publish Nuget package
+    runs-on: windows-2022
+    needs: buildWinUI
+    permissions:
+      packages: write
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Download intermediates
+      uses: actions/download-artifact@v3
+      with:
+        name: intermediates
+    - name: Create package
+      run: |
+        .\build\NuSpecs\build-nupkg.ps1 -BuildOutput "..\..\BuildOutput" -BuildFlavor "Release" -BuildArch "x64" -OutputDir "..\..\NugetPackage" -prereleaseversion "custom" -Subversion "a" -SkipFrameworkPackage
+    - name: Publish nuget
+      run: |
+        dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.actor }}/index.json"
+        dotnet nuget push "$(Get-ChildItem *NugetPackage/Microsoft.UI.Xaml*)" --api-key ${{ secrets.GITHUB_TOKEN }} --source "github"
+    - name: Upload nuget
+      uses: actions/upload-artifact@v3
+      with:
+        name: nuget
+        retention-days: 1
+        path: NugetPackage

@@ -54,6 +54,8 @@
 #include <Windows.Graphics.Interop.h>
 #include <winrt/Windows.Graphics.Effects.h>
 
+#pragma warning(disable: 26497)
+
 using namespace winrt::Microsoft::UI::Xaml::Controls;
 using namespace winrt::Windows::Foundation;
 using namespace winrt::Windows::Foundation::Numerics;
