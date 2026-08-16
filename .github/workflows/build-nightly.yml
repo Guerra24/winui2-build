@@ -12,11 +12,11 @@ jobs:
         arch: [x86, x64, ARM, arm64]
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0
     - name: Prepare Environment
-      uses: microsoft/setup-msbuild@v1.3
+      uses: microsoft/setup-msbuild@v2
       with:
         msbuild-architecture: x64
     - name: Prepare nuget cache
@@ -36,7 +36,7 @@ jobs:
         MSBuild dev\Microsoft.UI.Xaml.Design\Microsoft.UI.Xaml.Design.csproj -nologo -r -v:minimal /p:Configuration=Release /p:Platform=${{ matrix.arch }}
 # /p:PGOBuildMode=Optimize
     - name: Upload compiled files
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       with:
         name: intermediates
         retention-days: 1
@@ -53,7 +53,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
     - name: Download intermediates
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v5
       with:
         name: intermediates
     - name: Create package
@@ -64,7 +64,7 @@ jobs:
         dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.actor }}/index.json"
         dotnet nuget push "$(Get-ChildItem *NugetPackage/Microsoft.UI.Xaml*)" --api-key ${{ secrets.GITHUB_TOKEN }} --source "github"
     - name: Upload nuget
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       with:
         name: nuget
         retention-days: 1
